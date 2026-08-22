@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Reaction Test Game - Cognitive Training</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+        .game-box {
+            width: 100%;
+            height: 300px;
+            background-color: #cccccc;
+            border-radius: 20px;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.01s linear;
+            font-size: 32px;
+            font-weight: bold;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            margin: 10px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            font-weight: bold;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 10px;
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+        }
+        .score-table {
+            margin-top: 20px;
+            text-align: left;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 8px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚡ Reaction Test Game</h1>
+        <p>Click FAST when the box turns <strong style="color: green;">GREEN</strong>!</p>
+        
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-value" id="bestTime">-</div>
+                <div class="stat-label">Best Time</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="avgTime">-</div>
+                <div class="stat-label">Average</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="attempts">0</div>
+                <div class="stat-label">Attempts</div>
+            </div>
+        </div>
+        
+        <div class="game-box" id="gameBox" style="background-color: #cccccc;">
+            ⚡ READY
+        </div>
+        
+        <button id="startBtn">🎮 START GAME</button>
+        <button id="resetBtn">🔄 RESET SCORES</button>
+        
+        <div id="message" class="message info">
+            Click START GAME to begin!
+        </div>
+        
+        <div class="score-table">
+            <h3>📊 Score History</h3>
+            <table id="scoreTable">
+                <thead>
+                    <tr><th>Attempt</th><th>Time (seconds)</th></tr>
+                </thead>
+                <tbody id="scoreBody">
+                    <tr><td colspan="2">No scores yet</td></tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div style="margin-top: 20px; text-align: left; background: #f9f9f9; padding: 15px; border-radius: 10px;">
+            <h4>📖 How to Play:</h4>
+            <ol>
+                <li>Click <strong>START GAME</strong></li>
+                <li>Box turns <strong style="color: red;">RED</strong> - WAIT! Don't click!</li>
+                <li>After random time (1-4 seconds), box turns <strong style="color: green;">GREEN</strong></li>
+                <li><strong>CLICK ANYWHERE ON THE BOX</strong> as FAST as possible when it's GREEN!</li>
+                <li>Faster click = Better score!</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        let gameActive = false;
+        let waitingForGreen = false;
+        let greenTime = null;
+        let timeoutId = null;
+        let scores = [];
+        
+        const gameBox = document.getElementById('gameBox');
+        const startBtn = document.getElementById('startBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const messageDiv = document.getElementById('message');
+        
+        function updateStats() {
+            if (scores.length === 0) {
+                document.getElementById('bestTime').innerText = '-';
+                document.getElementById('avgTime').innerText = '-';
+                document.getElementById('attempts').innerText = '0';
+                return;
+            }
+            const best = Math.min(...scores);
+            const avg = scores.reduce((a,b) => a + b, 0) / scores.length;
+            document.getElementById('bestTime').innerText = best.toFixed(3) + 's';
+            document.getElementById('avgTime').innerText = avg.toFixed(3) + 's';
+            document.getElementById('attempts').innerText = scores.length;
+            
+            // Update table
+            const tbody = document.getElementById('scoreBody');
+            tbody.innerHTML = '';
+            scores.slice().reverse().forEach((score, index) => {
+                const row = tbody.insertRow();
+                row.insertCell(0).innerText = scores.length - index;
+                row.insertCell(1).innerText = score.toFixed(3) + 's';
+            });
+        }
+        
+        function setRed() {
+            gameBox.style.backgroundColor = '#ff4444';
+            gameBox.innerHTML = '🔴 WAIT...';
+            gameBox.style.color = 'white';
+            waitingForGreen = true;
+            messageDiv.className = 'message error';
+            messageDiv.innerHTML = '🔴 WAIT for GREEN light! Do NOT click!';
+            
+            // Random delay between 1-4 seconds
+            const delay = Math.random() * 3000 + 1000;
+            timeoutId = setTimeout(() => {
+                setGreen();
+            }, delay);
+        }
+        
+        function setGreen() {
+            if (!waitingForGreen) return;
+            gameBox.style.backgroundColor = '#44ff44';
+            gameBox.innerHTML = '🟢 CLICK NOW!';
+            gameBox.style.color = 'black';
+            waitingForGreen = false;
+            gameActive = true;
+            greenTime = Date.now();
+            messageDiv.className = 'message success';
+            messageDiv.innerHTML = '🟢 GREEN! CLICK NOW on the box! Fast!';
+        }
+        
+        function resetGame() {
+            if (timeoutId) clearTimeout(timeoutId);
+            gameActive = false;
+            waitingForGreen = false;
+            gameBox.style.backgroundColor = '#cccccc';
+            gameBox.innerHTML = '⚡ READY';
+            gameBox.style.color = 'black';
+            messageDiv.className = 'message info';
+            messageDiv.innerHTML = 'Click START GAME to begin!';
+        }
+        
+        function addScore(time) {
+            scores.push(time);
+            updateStats();
+        }
+        
+        gameBox.onclick = () => {
+            if (gameActive && greenTime) {
+                const reactionTime = (Date.now() - greenTime) / 1000;
+                addScore(reactionTime);
+                resetGame();
+                messageDiv.className = 'message success';
+                messageDiv.innerHTML = `✅ Great! Your reaction time: ${reactionTime.toFixed(3)} seconds!`;
+            } else if (waitingForGreen) {
+                resetGame();
+                messageDiv.className = 'message error';
+                messageDiv.innerHTML = '❌ Too early! You clicked on RED. Wait for GREEN!';
+            } else if (!gameActive && !waitingForGreen) {
+                messageDiv.className = 'message info';
+                messageDiv.innerHTML = 'Click START GAME first!';
+            }
+        };
+        
+        startBtn.onclick = () => {
+            resetGame();
+            setRed();
+        };
+        
+        resetBtn.onclick = () => {
+            scores = [];
+            resetGame();
+            updateStats();
+            messageDiv.className = 'message info';
+            messageDiv.innerHTML = 'Scores reset! Click START GAME to play!';
+        };
+    </script>
+</body>
+</html>
