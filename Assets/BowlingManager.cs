@@ -290,10 +290,12 @@ public class BowlingManager : MonoBehaviour
             ballCount = 0;
             bowlerIndex = (bowlerIndex + 1) % bowlerOrder.Length;
             currentBowler = bowlerOrder[bowlerIndex];
-
-            ApplyBowlerType();
             UpdateBowlingStyleUI();
         }
+
+        // Re-fire the Bowl trigger after EVERY delivery so the next ball
+        // is bowled. Bowler rotation still happens only on over completion.
+        ApplyBowlerType();
     }
 
     void UpdateBowlingStyleUI()
