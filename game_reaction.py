@@ -1,22 +1,16 @@
-# game_reaction.py - JavaScript Working Version
+# game_reaction.py - Reaction Test Game (fixed: manual confirm replaces the broken JS bridge)
 import streamlit as st
-import random
-import time
 import pandas as pd
 from streamlit.components.v1 import html
 
 st.set_page_config(page_title="Reaction Test Game", page_icon="⚡")
 
 st.title("⚡ Reaction Test Game")
-st.write("Click FAST when background turns **GREEN**!")
+st.write("Click FAST when the box turns **GREEN**!")
 
 # Initialize session state
 if "scores" not in st.session_state:
     st.session_state.scores = []
-if "game_active" not in st.session_state:
-    st.session_state.game_active = False
-if "reaction_time" not in st.session_state:
-    st.session_state.reaction_time = None
 
 # Show stats
 col1, col2, col3 = st.columns(3)
@@ -29,7 +23,7 @@ else:
     col2.metric("Average", "-")
     col3.metric("Attempts", "0")
 
-# JavaScript game component
+# JavaScript game component (display only - no fake bridge to Streamlit)
 game_html = """
 <div id="game-container" style="text-align: center; margin: 20px 0;">
     <div id="color-box" style="
@@ -74,25 +68,21 @@ game_html = """
     let waitingForGreen = false;
     let greenTime = null;
     let timeoutId = null;
-    
+
     const colorBox = document.getElementById('color-box');
     const boxText = document.getElementById('box-text');
     const startBtn = document.getElementById('start-btn');
     const clickBtn = document.getElementById('click-btn');
-    
+
     function setRed() {
         colorBox.style.backgroundColor = '#ff4444';
         boxText.innerHTML = '🔴 WAIT...';
         boxText.style.color = 'white';
         waitingForGreen = true;
-        
-        // Random delay between 1-4 seconds
-        const delay = Math.random() * 3000 + 1000;
-        timeoutId = setTimeout(() => {
-            setGreen();
-        }, delay);
+        const delay = Math.random() * 3000 + 1000;  // 1-4 seconds
+        timeoutId = setTimeout(setGreen, delay);
     }
-    
+
     function setGreen() {
         if (!waitingForGreen) return;
         colorBox.style.backgroundColor = '#44ff44';
@@ -104,7 +94,7 @@ game_html = """
         clickBtn.style.display = 'inline-block';
         startBtn.style.display = 'none';
     }
-    
+
     function reset() {
         if (timeoutId) clearTimeout(timeoutId);
         gameActive = false;
@@ -114,33 +104,17 @@ game_html = """
         clickBtn.style.display = 'none';
         startBtn.style.display = 'inline-block';
     }
-    
-    startBtn.onclick = () => {
-        reset();
-        setRed();
-    };
-    
+
+    startBtn.onclick = () => { reset(); setRed(); };
+
     clickBtn.onclick = () => {
         if (gameActive && greenTime) {
             const reactionTime = (Date.now() - greenTime) / 1000;
             reset();
-            
-            // Send result to Streamlit
-            const data = { reaction_time: reactionTime };
-            const script = document.createElement('script');
-            script.innerHTML = `
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.name = 'reaction_time';
-                input.value = '${reactionTime}';
-                document.body.appendChild(input);
-                input.dispatchEvent(new Event('change', { bubbles: true }));
-                input.remove();
-            `;
-            document.body.appendChild(script);
-            script.remove();
-            
-            alert(`✅ Your reaction time: ${reactionTime.toFixed(3)} seconds!`);
+            // Show the measured time clearly so the user can record it below.
+            colorBox.style.backgroundColor = '#cccccc';
+            boxText.style.color = 'black';
+            boxText.innerHTML = '⏱️ ' + reactionTime.toFixed(3) + 's — type it below and press Save!';
         } else if (!gameActive && waitingForGreen) {
             alert('❌ Too early! Wait for GREEN!');
             reset();
@@ -151,18 +125,22 @@ game_html = """
 </script>
 """
 
-# Display the game
-html(game_html, height=500)
+html(game_html, height=520)
 
-# Handle reaction time from JavaScript
-reaction_time = st.text_input("reaction_time", key="reaction_input", label_visibility="collapsed")
-if reaction_time:
-    try:
-        rt = float(reaction_time)
-        st.session_state.scores.append(rt)
+# Manual-but-working score recording (replaces the broken iframe bridge)
+st.subheader("✍️ Record your attempt")
+entered = st.number_input(
+    "Reaction time shown in the box (seconds)",
+    min_value=0.0, max_value=10.0, step=0.001, format="%.3f",
+    key="rt_input",
+)
+if st.button("💾 Save attempt"):
+    if entered <= 0:
+        st.warning("Play a round first, then enter the time shown in the box.")
+    else:
+        st.session_state.scores.append(float(entered))
+        st.success(f"Saved: {entered:.3f}s")
         st.rerun()
-    except:
-        pass
 
 # Score history
 if st.session_state.scores:
@@ -172,7 +150,7 @@ if st.session_state.scores:
         "Reaction Time (seconds)": [round(s, 3) for s in st.session_state.scores]
     })
     st.dataframe(df, use_container_width=True)
-    
+
     if st.button("🔄 Reset All Scores"):
         st.session_state.scores = []
         st.rerun()
@@ -182,6 +160,7 @@ with st.expander("📖 How to Play"):
     1. Click **START GAME**
     2. Box turns **RED** - DO NOT CLICK!
     3. After random time (1-4 seconds), box turns **GREEN**
-    4. Click **CLICK HERE** button as FAST as possible
-    5. Shorter time = Better score!
+    4. Click **CLICK HERE** as FAST as possible
+    5. Type the shown time below and press **Save attempt**
+    6. Shorter time = Better score!
     """)
