@@ -18,7 +18,7 @@ public class StumpsPhysics : MonoBehaviour
     /// <summary>Build stumps once, placed behind the batsman away from the bowler.</summary>
     public static StumpsPhysics Build(Vector3 batsmanPos, Vector3 bowlerPos)
     {
-        var existing = FindAnyObjectByType<StumpsPhysics>();
+        var existing = FindFirstObjectByType<StumpsPhysics>();
         if (existing != null) return existing;
 
         Vector3 away = batsmanPos - bowlerPos;
@@ -42,9 +42,8 @@ public class StumpsPhysics : MonoBehaviour
 
     void Construct()
     {
-        var white = new Material(Shader.Find("Standard"));
-        white.color = Color.white;
-
+        // Tint the primitives' own default materials instead of Shader.Find:
+        // always works, no dependency on which shaders the project ships.
         pieces = new Rigidbody[5];
         float stumpH = 0.71f; // real stump height (m)
 
@@ -57,7 +56,7 @@ public class StumpsPhysics : MonoBehaviour
             st.transform.SetParent(transform, false);
             st.transform.localPosition = new Vector3(xs[i], stumpH / 2f, 0f);
             st.transform.localScale = new Vector3(0.038f, stumpH / 2f, 0.038f);
-            st.GetComponent<Renderer>().material = white;
+            st.GetComponent<Renderer>().material.color = Color.white;
             ReplaceColliderWithCapsule(st, 0.5f, 2f);
 
             var rb = st.AddComponent<Rigidbody>();
@@ -75,7 +74,7 @@ public class StumpsPhysics : MonoBehaviour
             bail.transform.localPosition = new Vector3(i == 0 ? -0.057f : 0.057f, stumpH + 0.012f, 0f);
             bail.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
             bail.transform.localScale = new Vector3(0.02f, 0.054f, 0.02f);
-            bail.GetComponent<Renderer>().material = white;
+            bail.GetComponent<Renderer>().material.color = Color.white;
             ReplaceColliderWithCapsule(bail, 0.5f, 2f);
 
             var rb = bail.AddComponent<Rigidbody>();

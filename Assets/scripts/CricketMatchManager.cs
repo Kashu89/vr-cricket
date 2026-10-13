@@ -40,32 +40,67 @@ public class CricketMatchManager : MonoBehaviour
         pc.y = 0f;
         PitchCentre = pc;
 
-        // Real stumps behind the batsman.
-        Stumps = StumpsPhysics.Build(batsmanPos, bowlerPos);
-
-        // Put every pitch target on the true bowler->stumps line, so balls
-        // stop spraying wide and actually threaten the wicket. Each length
-        // keeps its character (yorker full, bouncer short), only the LINE
-        // is corrected. Runs before the first ball is released.
-        CorrectPitchTargets(bowlerPos, Stumps.transform.position);
-
-        // Wicket-keeper behind the stumps: tracks the ball, steps out,
-        // and catches edges / leaves.
-        Vector3 awayDir = Stumps.transform.position - bowlerPos;
-        awayDir.y = 0f;
-        if (awayDir.sqrMagnitude < 0.01f) awayDir = Vector3.back;
-        awayDir.Normalize();
-        WicketKeeper.Build(Stumps.transform.position, awayDir);
-
-        // Bat swing tracking (mouse swing and VR grab both move the bat transform).
-        var snap = FindAnyObjectByType<SnapSceneBatToHand>();
-        if (snap != null && snap.batInstance != null &&
-            snap.batInstance.GetComponent<BatSwingTracker>() == null)
+        // Each system below is independent: if one fails, the rest must
+        // still run. Never let one exception kill the whole match.
+        try
         {
-            snap.batInstance.AddComponent<BatSwingTracker>();
+            // Real stumps behind the batsman.
+            Stumps = StumpsPhysics.Build(batsmanPos, bowlerPos);
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"CricketMatchManager: stumps build failed: {e.Message}\n{e.StackTrace}");
+        }
+
+        try
+        {
+            // Put every pitch target on the true bowler->stumps line, so balls
+            // stop spraying wide and actually threaten the wicket. Each length
+            // keeps its character (yorker full, bouncer short), only the LINE
+            // is corrected. Runs before the first ball is released.
+            if (Stumps != null)
+                CorrectPitchTargets(bowlerPos, Stumps.transform.position);
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"CricketMatchManager: pitch-target correction failed: {e.Message}");
+        }
+
+        try
+        {
+            // Wicket-keeper behind the stumps: tracks the ball, steps out,
+            // and catches edges / leaves.
+            if (Stumps != null)
+            {
+                Vector3 awayDir = Stumps.transform.position - bowlerPos;
+                awayDir.y = 0f;
+                if (awayDir.sqrMagnitude < 0.01f) awayDir = Vector3.back;
+                awayDir.Normalize();
+                WicketKeeper.Build(Stumps.transform.position, awayDir);
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"CricketMatchManager: keeper build failed: {e.Message}");
+        }
+
+        try
+        {
+            // Bat swing tracking (mouse swing and VR grab both move the bat transform).
+            var snap = FindAnyObjectByType<SnapSceneBatToHand>();
+            if (snap != null && snap.batInstance != null &&
+                snap.batInstance.GetComponent<BatSwingTracker>() == null)
+            {
+                snap.batInstance.AddComponent<BatSwingTracker>();
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"CricketMatchManager: bat tracker hook failed: {e.Message}");
         }
 
         StartCoroutine(WatchForBalls());
+        Debug.Log("CricketMatchManager: all match systems started.");
     }
 
     // BowlingManager spawns balls via BallThrower; hook each one once.
@@ -159,7 +194,10 @@ public class CricketMatchManager : MonoBehaviour
         rt.sizeDelta = new Vector2(1000f, 180f);
 
         var t = go.AddComponent<Text>();
-        t.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        // Built-in Arial may be missing on some Unity 6 installs; fall back
+        // to Unity's default font (always available) instead of invisible text.
+        var arial = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        if (arial != null) t.font = arial;
         t.fontSize = fontSize;
         t.fontStyle = FontStyle.Bold;
         t.alignment = TextAnchor.MiddleCenter;

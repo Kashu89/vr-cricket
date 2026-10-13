@@ -19,7 +19,7 @@ public class WicketKeeper : MonoBehaviour
 
     public static WicketKeeper Build(Vector3 stumpPos, Vector3 awayFromBowler)
     {
-        var existing = FindAnyObjectByType<WicketKeeper>();
+        var existing = FindFirstObjectByType<WicketKeeper>();
         if (existing != null) return existing;
 
         Vector3 pos = stumpPos + awayFromBowler * 1.6f;
@@ -39,19 +39,15 @@ public class WicketKeeper : MonoBehaviour
 
     void Construct()
     {
-        var kit = new Material(Shader.Find("Standard"));
-        kit.color = new Color(0.08f, 0.14f, 0.45f); // dark blue kit
-        var skin = new Material(Shader.Find("Standard"));
-        skin.color = new Color(0.85f, 0.62f, 0.47f);
-        var gloveMat = new Material(Shader.Find("Standard"));
-        gloveMat.color = new Color(0.95f, 0.95f, 0.9f);
+        // Tint the primitives' own default materials instead of Shader.Find:
+        // always works, no dependency on which shaders the project ships.
 
         // Crouched body.
         var body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
         body.transform.SetParent(transform, false);
         body.transform.localPosition = new Vector3(0f, 0.55f, 0f);
         body.transform.localScale = new Vector3(0.55f, 0.75f, 0.55f);
-        body.GetComponent<Renderer>().material = kit;
+        body.GetComponent<Renderer>().material.color = new Color(0.08f, 0.14f, 0.45f); // dark blue kit
         Destroy(body.GetComponent<Collider>());
 
         // Head.
@@ -59,7 +55,7 @@ public class WicketKeeper : MonoBehaviour
         head.transform.SetParent(transform, false);
         head.transform.localPosition = new Vector3(0f, 1.15f, 0.1f);
         head.transform.localScale = Vector3.one * 0.28f;
-        head.GetComponent<Renderer>().material = skin;
+        head.GetComponent<Renderer>().material.color = new Color(0.85f, 0.62f, 0.47f);
         Destroy(head.GetComponent<Collider>());
 
         // Gloves: the catch point, held out in front.
@@ -73,7 +69,7 @@ public class WicketKeeper : MonoBehaviour
             glove.transform.SetParent(gloveAnchor, false);
             glove.transform.localPosition = new Vector3(i * 0.16f, 0f, 0f);
             glove.transform.localScale = Vector3.one * 0.22f;
-            glove.GetComponent<Renderer>().material = gloveMat;
+            glove.GetComponent<Renderer>().material.color = new Color(0.95f, 0.95f, 0.9f);
             Destroy(glove.GetComponent<Collider>());
         }
     }
@@ -92,7 +88,7 @@ public class WicketKeeper : MonoBehaviour
             return;
         }
 
-        var ball = FindAnyObjectByType<BallHitPhysics>();
+        var ball = FindFirstObjectByType<BallHitPhysics>();
 
         Vector3 target = homePos;
         float speed = 2f;
