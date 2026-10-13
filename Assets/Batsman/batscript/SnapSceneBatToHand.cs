@@ -43,9 +43,13 @@ public class SnapSceneBatToHand : MonoBehaviour
 
     void Start()
     {
+        // Self-healing: the scene's serialized references can go stale
+        // (broken fileIDs). Find by name before giving up.
+        ResolveReferences();
+
         if (batInstance == null || batHolder == null)
         {
-            Debug.LogWarning("SnapSceneBatToHand: assign batInstance and batHolder in the Inspector.");
+            Debug.LogError("SnapSceneBatToHand: batInstance or batHolder could not be found (Inspector refs broken and auto-find failed).");
             return;
         }
 
@@ -73,6 +77,50 @@ public class SnapSceneBatToHand : MonoBehaviour
         // VR: let the player grab the bat with controllers
         if (enableVRGrab && batInstance.GetComponent<BatVRGrab>() == null)
             batInstance.AddComponent<BatVRGrab>();
+    }
+
+    // The scene's serialized batInstance/batHolder references can go stale
+    // (broken fileIDs after reimports). Recover by name instead of failing.
+    void ResolveReferences()
+    {
+        if (batHolder == null)
+        {
+            var bh = GameObject.Find("BatHolder");
+            if (bh != null)
+            {
+                batHolder = bh.transform;
+                Debug.Log("SnapSceneBatToHand: batHolder recovered by name.");
+            }
+        }
+
+        if (batInstance == null)
+        {
+            batInstance = FindBatMeshObject();
+            if (batInstance != null)
+                Debug.Log($"SnapSceneBatToHand: batInstance recovered by name ({batInstance.name}).");
+        }
+    }
+
+    // Find the FBX bat instance: a GameObject with "bat" in the name that
+    // actually carries a mesh. Walks up to the bat hierarchy root.
+    static GameObject FindBatMeshObject()
+    {
+        foreach (var mf in FindObjectsByType<MeshFilter>(FindObjectsInactive.Exclude))
+        {
+            var go = mf.gameObject;
+            // Skip the holder itself and anything without a real mesh.
+            if (mf.sharedMesh == null) continue;
+            if (!go.name.ToLower().Contains("bat")) continue;
+            if (go.name == "BatHolder" || go.name == "Batmanager") continue;
+
+            while (go.transform.parent != null &&
+                   go.transform.parent.name.ToLower().Contains("bat") &&
+                   go.transform.parent.name != "BatHolder" &&
+                   go.transform.parent.name != "Batmanager")
+                go = go.transform.parent.gameObject;
+            return go;
+        }
+        return null;
     }
 
     void ApplyAutoFit()
