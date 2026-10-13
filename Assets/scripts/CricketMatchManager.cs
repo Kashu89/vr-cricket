@@ -36,8 +36,9 @@ public class CricketMatchManager : MonoBehaviour
         Vector3 bowlerPos = bowler != null ? bowler.transform.position : new Vector3(2.23f, 0f, -6.93f);
         Vector3 batsmanPos = batsman != null ? batsman.transform.position : new Vector3(-13.3f, 0f, 2.1f);
 
-        PitchCentre = (bowlerPos + batsmanPos) * 0.5f;
-        PitchCentre.y = 0f;
+        Vector3 pc = (bowlerPos + batsmanPos) * 0.5f;
+        pc.y = 0f;
+        PitchCentre = pc;
 
         // Real stumps behind the batsman.
         Stumps = StumpsPhysics.Build(batsmanPos, bowlerPos);
