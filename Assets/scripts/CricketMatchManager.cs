@@ -42,6 +42,20 @@ public class CricketMatchManager : MonoBehaviour
         // Real stumps behind the batsman.
         Stumps = StumpsPhysics.Build(batsmanPos, bowlerPos);
 
+        // Put every pitch target on the true bowler->stumps line, so balls
+        // stop spraying wide and actually threaten the wicket. Each length
+        // keeps its character (yorker full, bouncer short), only the LINE
+        // is corrected. Runs before the first ball is released.
+        CorrectPitchTargets(bowlerPos, Stumps.transform.position);
+
+        // Wicket-keeper behind the stumps: tracks the ball, steps out,
+        // and catches edges / leaves.
+        Vector3 awayDir = Stumps.transform.position - bowlerPos;
+        awayDir.y = 0f;
+        if (awayDir.sqrMagnitude < 0.01f) awayDir = Vector3.back;
+        awayDir.Normalize();
+        WicketKeeper.Build(Stumps.transform.position, awayDir);
+
         // Bat swing tracking (mouse swing and VR grab both move the bat transform).
         var snap = FindFirstObjectByType<SnapSceneBatToHand>();
         if (snap != null && snap.batInstance != null &&
@@ -66,6 +80,30 @@ public class CricketMatchManager : MonoBehaviour
             }
             yield return wait;
         }
+    }
+
+    // Move the scene's pitch targets onto the real stump line.
+    // t = fraction from bowler (0) to stumps (1).
+    void CorrectPitchTargets(Vector3 bowlerPos, Vector3 stumpPos)
+    {
+        SetPitchTarget("YorkerPoint", bowlerPos, stumpPos, 0.90f);
+        SetPitchTarget("GoodLengthPoint", bowlerPos, stumpPos, 0.72f);
+        SetPitchTarget("ShortLengthPoint", bowlerPos, stumpPos, 0.62f);
+        SetPitchTarget("BouncerPoint", bowlerPos, stumpPos, 0.52f);
+    }
+
+    void SetPitchTarget(string name, Vector3 a, Vector3 b, float t)
+    {
+        var go = GameObject.Find(name);
+        if (go == null)
+        {
+            Debug.LogWarning($"CricketMatchManager: pitch target '{name}' not found, line not corrected.");
+            return;
+        }
+        Vector3 p = Vector3.Lerp(a, b, t);
+        p.y = 0.05f;
+        go.transform.position = p;
+        Debug.Log($"CricketMatchManager: {name} corrected to {p} (on stump line)");
     }
 
     void Update()

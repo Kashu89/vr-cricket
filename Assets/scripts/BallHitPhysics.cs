@@ -24,6 +24,7 @@ public class BallHitPhysics : MonoBehaviour
     Rigidbody rb;
     int bounces;
     bool boundaryResolved;
+    bool hasPitched;   // first ground contact: apply delivery-type pitch behaviour
     float lifeTimer;
 
     void Awake()
@@ -57,6 +58,22 @@ public class BallHitPhysics : MonoBehaviour
 
     void OnCollisionEnter(Collision collision)
     {
+        // First pitch: react like the real delivery type (fast skids, spin
+        // turns, bouncer climbs, yorker stays low). Overrides the bouncy
+        // material for this one contact only.
+        if (State == BallState.Flying && !hasPitched)
+        {
+            foreach (var cp in collision.contacts)
+            {
+                if (cp.normal.y > 0.5f)
+                {
+                    hasPitched = true;
+                    ApplyPitchBehaviour();
+                    break;
+                }
+            }
+        }
+
         // Direct solid hit on a stump also counts as bowled.
         if (State == BallState.Flying)
         {
@@ -76,6 +93,88 @@ public class BallHitPhysics : MonoBehaviour
                 if (cp.normal.y > 0.5f) { bounces++; break; }
             }
         }
+    }
+
+    // ---------------- PITCH BEHAVIOUR ----------------
+    // Different deliveries react differently off the pitch, like real cricket.
+    // The delivery type was tagged at spawn by BowlingManager (BallFlightData).
+    void ApplyPitchBehaviour()
+    {
+        if (rb == null) return;
+
+        var flight = GetComponent<BallFlightData>();
+        Vector3 v = rb.velocity;
+
+        Vector3 flat = v; flat.y = 0f;
+        if (flat.sqrMagnitude < 0.01f) return;
+        flat.Normalize();
+        Vector3 lateral = Vector3.Cross(Vector3.up, flat); // sideways to travel
+
+        Vector3 nv;
+        float turn = 0f;
+
+        if (flight != null)
+        {
+            bool la = flight.isLeftArm;
+            switch (flight.spinKind)
+            {
+                case BallFlightData.SpinKind.Fast:
+                    // Seam/fast: skids through, keeps its pace.
+                    nv = v * 0.94f + Vector3.up * 1.0f;
+                    break;
+                case BallFlightData.SpinKind.OffSpin:
+                    // Fingerspin: grips and turns (mirrored for left-arm orthodox).
+                    turn = la ? 2.4f : -2.4f;
+                    nv = v * 0.8f + lateral * turn + Vector3.up * 2.0f;
+                    break;
+                case BallFlightData.SpinKind.LegSpin:
+                    // Wristspin: turns the other way (mirrored for left-arm wrist).
+                    turn = la ? -2.6f : 2.6f;
+                    nv = v * 0.8f + lateral * turn + Vector3.up * 2.0f;
+                    break;
+                case BallFlightData.SpinKind.Googly:
+                    // Wrong'un: turns OPPOSITE to the leg-spinner's stock ball.
+                    turn = la ? 2.6f : -2.6f;
+                    nv = v * 0.8f + lateral * turn + Vector3.up * 2.0f;
+                    break;
+                case BallFlightData.SpinKind.Bouncer:
+                    // Climbs steeply off the pitch.
+                    nv = v * 0.9f + Vector3.up * 4.5f;
+                    break;
+                case BallFlightData.SpinKind.Yorker:
+                    // Stays low and skids under the bat.
+                    nv = new Vector3(v.x * 0.9f, v.y * 0.25f, v.z * 0.9f);
+                    break;
+                default:
+                    nv = v * 0.94f + Vector3.up * 1.0f;
+                    break;
+            }
+        }
+        else
+        {
+            nv = v * 0.94f + Vector3.up * 1.0f;
+        }
+
+        rb.velocity = nv;
+
+        // Visible spin on turning balls.
+        if (turn != 0f)
+            rb.angularVelocity = lateral * turn * 6f;
+
+        Debug.Log($"BallHitPhysics: pitched as {(flight != null ? flight.spinKind.ToString() : "Fast?")} (leftArm={(flight != null && flight.isLeftArm)})");
+    }
+
+    // Called by the wicket-keeper on a catch.
+    public void MarkCaught()
+    {
+        State = BallState.Dead;
+        if (rb != null)
+        {
+            rb.velocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.isKinematic = true;
+        }
+        lifeTimer = 2f;
     }
 
     // ---------------- BOWLED ----------------
@@ -122,10 +221,33 @@ public class BallHitPhysics : MonoBehaviour
 
     void OnBlock()
     {
-        // Defensive block: ball drops dead near the bat.
-        rb.velocity = rb.velocity * 0.12f + Vector3.up * 1.2f;
-        rb.angularVelocity *= 0.2f;
-        Debug.Log("BallHitPhysics: blocked.");
+        // Defensive block: usually the ball drops dead near the bat.
+        // Sometimes it's an edge and flies to the keeper (CAUGHT BEHIND!).
+        if (Random.value < 0.4f)
+        {
+            var keeper = FindFirstObjectByType<WicketKeeper>();
+            Vector3 dir;
+            if (keeper != null)
+            {
+                dir = keeper.transform.position - transform.position;
+            }
+            else
+            {
+                dir = -rb.velocity;
+            }
+            dir.y = 0f;
+            if (dir.sqrMagnitude < 0.01f) dir = Vector3.back;
+            dir.Normalize();
+            rb.velocity = dir * 7f + Vector3.up * 2.5f;
+            rb.angularVelocity = Random.insideUnitSphere * 8f;
+            Debug.Log("BallHitPhysics: EDGED! flying to the keeper...");
+        }
+        else
+        {
+            rb.velocity = rb.velocity * 0.12f + Vector3.up * 1.2f;
+            rb.angularVelocity *= 0.2f;
+            Debug.Log("BallHitPhysics: blocked.");
+        }
     }
 
     // A fresh ball with no scripted flight — pure rigid-body physics from here.
