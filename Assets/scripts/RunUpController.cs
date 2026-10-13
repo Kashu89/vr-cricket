@@ -1,26 +1,27 @@
 using UnityEngine;
-using System.Collections; 
 
+/// <summary>
+/// Moves the bowler from the run-up start to the crease.
+/// The delivery loop (gap between balls, teleport back, re-trigger) is owned
+/// by BowlingManager, which calls BeginRunUp() before every ball. This script
+/// no longer resets itself or talks to OverManager, so the two systems can't
+/// fight each other anymore.
+/// </summary>
 public class RunUpController : MonoBehaviour
 {
     [Header("Run-up Settings")]
-    public Transform creaseTarget;   
-    public float runSpeed = 2.5f;    
+    public Transform creaseTarget;
+    public float runSpeed = 2.5f;
     public bool isRunning = true;
-    public float resetDelay = 5f;
-    public OverManager manager; 
 
-    private Vector3 startPosition; 
-    private Quaternion startRotation; // NAYA: Bowler ka angle yaad rakhne ke liye
-    private Animator animator;
+    private Vector3 startPosition;
+    private Quaternion startRotation;
 
     void Start()
     {
-        // Game start hote hi jagah aur angle dono save kar lo
+        // Remember the run-up start (position + facing).
         startPosition = transform.position;
-        startRotation = transform.rotation; 
-        
-        animator = GetComponent<Animator>();
+        startRotation = transform.rotation;
     }
 
     void Update()
@@ -32,35 +33,28 @@ public class RunUpController : MonoBehaviour
 
             if (distance > 0.1f)
             {
-                // Bowler ko hamesha crease ki taraf dekhne par majboor karo
-                transform.LookAt(fixedTarget); 
-                
+                // Always face the crease while running in.
+                transform.LookAt(fixedTarget);
+
                 transform.position = Vector3.MoveTowards(transform.position, fixedTarget, runSpeed * Time.deltaTime);
             }
             else
             {
+                // Reached the crease: stop and wait. BowlingManager decides
+                // when the next ball starts (it calls BeginRunUp).
                 isRunning = false;
-                if (manager != null) manager.RecordBall();
-                StartCoroutine(ResetBowlerRoutine());
             }
         }
     }
 
-    IEnumerator ResetBowlerRoutine()
+    /// <summary>
+    /// Called by BowlingManager before every delivery: teleport back to the
+    /// run-up start and run in again, like a real bowler.
+    /// </summary>
+    public void BeginRunUp()
     {
-        yield return new WaitForSeconds(resetDelay);
-
-        // 1. Animator ko ek pal ke liye band karo taaki wo teleport ko block na kare
-        animator.enabled = false;
-
-        // 2. Position aur Rotation wapas exactly start point (boundary) par set karo
         transform.position = startPosition;
-        transform.rotation = startRotation; 
-
-        // 3. Animator wapas chalu karo aur animation ko shuru (0) se play karo
-        animator.enabled = true;
-        animator.Play("Bowling", 0, 0f); 
-
+        transform.rotation = startRotation;
         isRunning = true;
     }
 }
