@@ -184,7 +184,7 @@ public class BallHitPhysics : MonoBehaviour
         State = BallState.Dead;
         Vector3 incoming = rb.velocity;
 
-        var stumps = FindFirstObjectByType<StumpsPhysics>();
+        var stumps = FindAnyObjectByType<StumpsPhysics>();
         if (stumps != null) stumps.KnockDown(incoming);
 
         // Deflect back off the stumps with a pop-up, like a real bowled ball.
@@ -225,7 +225,7 @@ public class BallHitPhysics : MonoBehaviour
         // Sometimes it's an edge and flies to the keeper (CAUGHT BEHIND!).
         if (Random.value < 0.4f)
         {
-            var keeper = FindFirstObjectByType<WicketKeeper>();
+            var keeper = FindAnyObjectByType<WicketKeeper>();
             Vector3 dir;
             if (keeper != null)
             {

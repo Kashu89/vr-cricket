@@ -32,7 +32,7 @@ public class CricketMatchManager : MonoBehaviour
     void Start()
     {
         var bowler = GameObject.Find("Bowler");
-        var batsman = FindFirstObjectByType<PlayerMovement>();
+        var batsman = FindAnyObjectByType<PlayerMovement>();
         Vector3 bowlerPos = bowler != null ? bowler.transform.position : new Vector3(2.23f, 0f, -6.93f);
         Vector3 batsmanPos = batsman != null ? batsman.transform.position : new Vector3(-13.3f, 0f, 2.1f);
 
@@ -57,7 +57,7 @@ public class CricketMatchManager : MonoBehaviour
         WicketKeeper.Build(Stumps.transform.position, awayDir);
 
         // Bat swing tracking (mouse swing and VR grab both move the bat transform).
-        var snap = FindFirstObjectByType<SnapSceneBatToHand>();
+        var snap = FindAnyObjectByType<SnapSceneBatToHand>();
         if (snap != null && snap.batInstance != null &&
             snap.batInstance.GetComponent<BatSwingTracker>() == null)
         {
@@ -73,7 +73,7 @@ public class CricketMatchManager : MonoBehaviour
         var wait = new WaitForSeconds(0.3f);
         while (true)
         {
-            foreach (var thrower in FindObjectsByType<BallThrower>(FindObjectsSortMode.None))
+            foreach (var thrower in FindObjectsByType<BallThrower>(FindObjectsInactive.Exclude))
             {
                 if (thrower.GetComponent<BallHitPhysics>() == null)
                     thrower.gameObject.AddComponent<BallHitPhysics>();

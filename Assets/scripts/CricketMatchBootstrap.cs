@@ -11,7 +11,7 @@ public static class CricketMatchBootstrap
     {
         // Only in the cricket scene (it has a Bowler).
         if (GameObject.Find("Bowler") == null) return;
-        if (Object.FindFirstObjectByType<CricketMatchManager>() != null) return;
+        if (Object.FindAnyObjectByType<CricketMatchManager>() != null) return;
 
         var go = new GameObject("CricketMatchManager");
         go.AddComponent<CricketMatchManager>();

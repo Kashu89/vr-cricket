@@ -18,7 +18,7 @@ public class StumpsPhysics : MonoBehaviour
     /// <summary>Build stumps once, placed behind the batsman away from the bowler.</summary>
     public static StumpsPhysics Build(Vector3 batsmanPos, Vector3 bowlerPos)
     {
-        var existing = FindFirstObjectByType<StumpsPhysics>();
+        var existing = FindAnyObjectByType<StumpsPhysics>();
         if (existing != null) return existing;
 
         Vector3 away = batsmanPos - bowlerPos;
